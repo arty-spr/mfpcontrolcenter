@@ -130,18 +130,18 @@ function Install-BuildTools {
         "--includeRecommended"
     )
 
-    Write-Host "    [" -NoNewline
-    $process = Start-Process -FilePath $BuildToolsInstaller -ArgumentList $installArgs -PassThru -Wait
+    $process = Start-Process -FilePath $BuildToolsInstaller -ArgumentList $installArgs -PassThru
 
     # Анимация ожидания
     $spinner = @('|', '/', '-', '\')
     $i = 0
     while (-not $process.HasExited) {
-        Write-Host "`r    Установка... $($spinner[$i % 4])" -NoNewline
+        Write-Host "`r    Установка... $($spinner[$i % 4]) " -NoNewline
         Start-Sleep -Milliseconds 500
         $i++
     }
 
+    $process.WaitForExit()
     Write-Host ""
 
     if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
@@ -380,17 +380,17 @@ echo         Удаление MFP Control Center
 echo ═══════════════════════════════════════════════════════════════
 echo.
 echo Удаление файлов программы...
-rmdir /S /Q "$InstallDir" 2>nul
+rmdir /S /Q "%ProgramFiles%\MFP Control Center" 2>nul
 echo Удаление ярлыков...
-del "$DesktopPath\$AppName.lnk" 2>nul
-del "$StartMenuPath\$AppName.lnk" 2>nul
+del "%USERPROFILE%\Desktop\MFP Control Center.lnk" 2>nul
+del "%ProgramData%\Microsoft\Windows\Start Menu\Programs\MFP Control Center.lnk" 2>nul
 echo.
 echo ═══════════════════════════════════════════════════════════════
 echo         MFP Control Center успешно удалён!
 echo ═══════════════════════════════════════════════════════════════
 pause
 "@
-    $uninstallBat | Out-File -FilePath "$InstallDir\Удалить программу.bat" -Encoding Default
+    $uninstallBat | Out-File -FilePath "$InstallDir\Удалить программу.bat" -Encoding UTF8
 
     Write-Success "Файл удаления создан"
 
