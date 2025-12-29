@@ -1,0 +1,258 @@
+<UserControl x:Class="MFPControlCenter.Views.PrintView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:vm="clr-namespace:MFPControlCenter.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900">
+
+    <UserControl.DataContext>
+        <vm:PrintViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="350"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Панель настроек -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="Печать документа" Style="{StaticResource HeaderTextStyle}"/>
+
+                <!-- Выбор файла -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Файл для печати" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <Button Command="{Binding SelectFileCommand}"
+                                HorizontalAlignment="Stretch"
+                                Style="{StaticResource MaterialDesignOutlinedButton}">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="FileDocument" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="Выбрать файл"/>
+                            </StackPanel>
+                        </Button>
+
+                        <TextBlock Text="{Binding FileName}"
+                                   Margin="0,10,0,0"
+                                   FontStyle="Italic"
+                                   Visibility="{Binding FileName, Converter={StaticResource NullToVisibilityConverter}}"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Выбор принтера -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Принтер" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <ComboBox ItemsSource="{Binding AvailablePrinters}"
+                                  SelectedItem="{Binding SelectedPrinter}"
+                                  materialDesign:HintAssist.Hint="Выберите принтер"
+                                  Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Настройки печати -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Настройки печати" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <!-- Количество копий -->
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Количество копий:" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="-" Width="30" Height="30"
+                                        Command="{Binding DecreaseCopiesCommand}"
+                                        Style="{StaticResource MaterialDesignIconButton}"/>
+                                <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="50" TextAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                                <Button Content="+" Width="30" Height="30"
+                                        Command="{Binding IncreaseCopiesCommand}"
+                                        Style="{StaticResource MaterialDesignIconButton}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Двусторонняя печать -->
+                        <CheckBox Content="Двусторонняя печать (дуплекс)"
+                                  IsChecked="{Binding IsDuplex}"
+                                  Margin="0,15,0,0"/>
+
+                        <!-- Диапазон страниц -->
+                        <StackPanel Margin="0,15,0,0">
+                            <TextBlock Text="Диапазон страниц:"/>
+                            <TextBox Text="{Binding PageRange, UpdateSourceTrigger=PropertyChanged}"
+                                     materialDesign:HintAssist.Hint="все, 1-5, 1,3,5-7"
+                                     Margin="0,5,0,0"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                        </StackPanel>
+
+                        <!-- Размер бумаги -->
+                        <StackPanel Margin="0,15,0,0">
+                            <TextBlock Text="Размер бумаги:"/>
+                            <ComboBox ItemsSource="{Binding PaperSizes}"
+                                      SelectedItem="{Binding SelectedPaperSize}"
+                                      Margin="0,5,0,0"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                        </StackPanel>
+
+                        <!-- Ориентация -->
+                        <StackPanel Margin="0,15,0,0">
+                            <TextBlock Text="Ориентация:"/>
+                            <ComboBox ItemsSource="{Binding Orientations}"
+                                      SelectedItem="{Binding SelectedOrientation}"
+                                      Margin="0,5,0,0"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                        </StackPanel>
+
+                        <!-- Качество -->
+                        <StackPanel Margin="0,15,0,0">
+                            <TextBlock Text="Качество:"/>
+                            <ComboBox ItemsSource="{Binding Qualities}"
+                                      SelectedItem="{Binding SelectedQuality}"
+                                      Margin="0,5,0,0"
+                                      Style="{StaticResource MaterialDesignOutlinedComboBox}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Кнопка печати -->
+                <Button Command="{Binding PrintCommand}"
+                        IsEnabled="{Binding IsPrinting, Converter={StaticResource InverseBooleanConverter}}"
+                        HorizontalAlignment="Stretch"
+                        Height="50">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="Printer" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="ПЕЧАТЬ" VerticalAlignment="Center" FontSize="16"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Статус -->
+                <TextBlock Text="{Binding StatusMessage}"
+                           Margin="0,15,0,0"
+                           TextAlignment="Center"
+                           Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Область предпросмотра -->
+        <materialDesign:Card Grid.Column="1" Padding="15">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Предпросмотр" Style="{StaticResource SectionHeaderStyle}"/>
+
+                <!-- Область просмотра страницы -->
+                <Border Grid.Row="1" Background="#F5F5F5" CornerRadius="4">
+                    <Grid>
+                        <!-- Изображение страницы -->
+                        <Image Source="{Binding PreviewImage}"
+                               Stretch="Uniform"
+                               Margin="10"/>
+
+                        <!-- Текст "Выберите файл" -->
+                        <TextBlock Text="Выберите файл для предпросмотра"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="Gray"
+                                   Visibility="{Binding PreviewImage, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=Invert}"/>
+
+                        <!-- Индикатор загрузки -->
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                         Value="0"
+                                         IsIndeterminate="True"
+                                         Width="50" Height="50"/>
+                            <TextBlock Text="Загрузка..."
+                                       Margin="0,10,0,0"
+                                       HorizontalAlignment="Center"
+                                       Foreground="Gray"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Панель навигации по страницам -->
+                <Grid Grid.Row="2" Margin="0,10,0,0"
+                      Visibility="{Binding HasMultiplePages, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Кнопки навигации -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <!-- Первая страница -->
+                        <Button Command="{Binding FirstPageCommand}"
+                                ToolTip="Первая страница"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                Margin="0,0,5,0">
+                            <materialDesign:PackIcon Kind="PageFirst" Width="24" Height="24"/>
+                        </Button>
+
+                        <!-- Предыдущая страница -->
+                        <Button Command="{Binding PreviousPageCommand}"
+                                ToolTip="Предыдущая страница"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                Margin="0,0,10,0">
+                            <materialDesign:PackIcon Kind="ChevronLeft" Width="24" Height="24"/>
+                        </Button>
+
+                        <!-- Номер страницы -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBox Text="{Binding CurrentPageNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="50"
+                                     TextAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     materialDesign:HintAssist.Hint="№"/>
+                            <TextBlock Text=" из " VerticalAlignment="Center" Margin="5,0"/>
+                            <TextBlock Text="{Binding TotalPages}"
+                                       VerticalAlignment="Center"
+                                       FontWeight="Bold"/>
+                        </StackPanel>
+
+                        <!-- Следующая страница -->
+                        <Button Command="{Binding NextPageCommand}"
+                                ToolTip="Следующая страница"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                Margin="10,0,0,0">
+                            <materialDesign:PackIcon Kind="ChevronRight" Width="24" Height="24"/>
+                        </Button>
+
+                        <!-- Последняя страница -->
+                        <Button Command="{Binding LastPageCommand}"
+                                ToolTip="Последняя страница"
+                                Style="{StaticResource MaterialDesignIconButton}"
+                                Margin="5,0,0,0">
+                            <materialDesign:PackIcon Kind="PageLast" Width="24" Height="24"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Информация о странице (для одностраничных документов) -->
+                <TextBlock Grid.Row="2"
+                           Text="{Binding PageInfo}"
+                           HorizontalAlignment="Center"
+                           Margin="0,10,0,0"
+                           Foreground="Gray"
+                           Visibility="{Binding HasMultiplePages, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
+            </Grid>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

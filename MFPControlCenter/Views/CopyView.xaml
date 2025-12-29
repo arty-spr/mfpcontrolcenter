@@ -1,0 +1,245 @@
+<UserControl x:Class="MFPControlCenter.Views.CopyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:vm="clr-namespace:MFPControlCenter.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900">
+
+    <UserControl.DataContext>
+        <vm:CopyViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Панель настроек -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="Копирование" Style="{StaticResource HeaderTextStyle}"/>
+
+                <!-- Режим копирования -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Режим копирования" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <ComboBox ItemsSource="{Binding CopyModes}"
+                                  SelectedItem="{Binding SelectedMode}"
+                                  Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource CopyModeConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <TextBlock Text="{Binding ModeDescription}"
+                                   Margin="0,10,0,0"
+                                   FontStyle="Italic"
+                                   Foreground="Gray"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Источник -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Источник" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <ComboBox ItemsSource="{Binding Sources}"
+                                  SelectedItem="{Binding SelectedSource}"
+                                  Style="{StaticResource MaterialDesignOutlinedComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource ScanSourceConverter}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Настройки копирования -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Настройки" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <!-- Количество копий -->
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Количество копий:" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="60" TextAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Масштаб -->
+                        <StackPanel Margin="0,15,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Масштаб:" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ScalePercent, StringFormat={}{0}%}"/>
+                            </Grid>
+                            <Slider Value="{Binding ScalePercent}"
+                                    Minimum="25" Maximum="400"
+                                    TickFrequency="25"
+                                    IsSnapToTickEnabled="True"
+                                    Style="{StaticResource MaterialDesignDiscreteSlider}"/>
+                        </StackPanel>
+
+                        <!-- Яркость -->
+                        <StackPanel Margin="0,15,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Яркость:" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Brightness}"/>
+                            </Grid>
+                            <Slider Value="{Binding Brightness}"
+                                    Minimum="-50" Maximum="50"
+                                    TickFrequency="10"
+                                    Style="{StaticResource MaterialDesignDiscreteSlider}"/>
+                        </StackPanel>
+
+                        <!-- Контрастность -->
+                        <StackPanel Margin="0,15,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Контрастность:" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Contrast}"/>
+                            </Grid>
+                            <Slider Value="{Binding Contrast}"
+                                    Minimum="-50" Maximum="50"
+                                    TickFrequency="10"
+                                    Style="{StaticResource MaterialDesignDiscreteSlider}"/>
+                        </StackPanel>
+
+                        <!-- Двусторонняя печать -->
+                        <CheckBox Content="Двусторонняя печать (дуплекс)"
+                                  IsChecked="{Binding IsDuplex}"
+                                  Margin="0,15,0,0"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Кнопки действий -->
+                <Button Command="{Binding CopyCommand}"
+                        IsEnabled="{Binding IsCopying, Converter={StaticResource InverseBooleanConverter}}"
+                        HorizontalAlignment="Stretch"
+                        Height="50">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="ContentCopy" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="КОПИРОВАТЬ" VerticalAlignment="Center" FontSize="16"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding IdCopyCommand}"
+                        IsEnabled="{Binding IsCopying, Converter={StaticResource InverseBooleanConverter}}"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,10,0,0"
+                        Height="50"
+                        Style="{StaticResource MaterialDesignOutlinedButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="CardAccountDetails" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="ID-КОПИЯ" VerticalAlignment="Center" FontSize="16"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Прогресс -->
+                <ProgressBar Value="{Binding Progress}"
+                             Minimum="0" Maximum="100"
+                             Margin="0,15,0,0"
+                             Visibility="{Binding IsCopying, Converter={StaticResource BooleanToVisibilityConverter}}"
+                             Style="{StaticResource MaterialDesignLinearProgressBar}"/>
+
+                <!-- Статус -->
+                <TextBlock Text="{Binding StatusMessage}"
+                           Margin="0,10,0,0"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Информационная панель -->
+        <materialDesign:Card Grid.Column="1" Padding="20">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+
+                <!-- Мгновенная копия -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,20" Background="{DynamicResource PrimaryHueLightBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <materialDesign:PackIcon Kind="Flash" Width="48" Height="48"
+                                                 Foreground="White" VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                            <TextBlock Text="Мгновенная копия" FontSize="18" FontWeight="Medium" Foreground="White"/>
+                            <TextBlock Text="Сканирует страницу и сразу отправляет на печать. Идеально для быстрого копирования."
+                                       TextWrapping="Wrap" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </materialDesign:Card>
+
+                <!-- Отложенная копия -->
+                <materialDesign:Card Padding="20" Margin="0,0,0,20" Background="{DynamicResource SecondaryHueMidBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <materialDesign:PackIcon Kind="FileMultiple" Width="48" Height="48"
+                                                 Foreground="White" VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                            <TextBlock Text="Отложенная копия" FontSize="18" FontWeight="Medium" Foreground="White"/>
+                            <TextBlock Text="Сканирует все страницы, собирает в один документ, затем печатает. Для многостраничных документов."
+                                       TextWrapping="Wrap" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </materialDesign:Card>
+
+                <!-- ID-копия -->
+                <materialDesign:Card Padding="20" Background="#FF7043">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <materialDesign:PackIcon Kind="CardAccountDetails" Width="48" Height="48"
+                                                 Foreground="White" VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Column="1" Margin="15,0,0,0">
+                            <TextBlock Text="ID-копия" FontSize="18" FontWeight="Medium" Foreground="White"/>
+                            <TextBlock Text="Сканирует обе стороны документа и размещает их на одном листе. Для паспортов и удостоверений."
+                                       TextWrapping="Wrap" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </materialDesign:Card>
+
+            </StackPanel>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

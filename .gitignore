@@ -1,0 +1,29 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# NuGet
+packages/
+*.nupkg
+nuget.exe
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Installer downloads
+vs_BuildTools.exe
