@@ -22,6 +22,10 @@ $TempDir = "$env:TEMP\MFPControlCenter_Install"
 $BuildToolsUrl = "https://aka.ms/vs/17/release/vs_BuildTools.exe"
 $BuildToolsInstaller = "$TempDir\vs_BuildTools.exe"
 
+# URL для скачивания .NET Framework 4.8
+$NetFrameworkUrl = "https://go.microsoft.com/fwlink/?linkid=2088631"
+$NetFrameworkInstaller = "$TempDir\ndp48-web.exe"
+
 function Write-Header {
     Clear-Host
     Write-Host ""
@@ -56,6 +60,83 @@ function Test-Administrator {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Install-NetFramework {
+    Write-Host ""
+    Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
+    Write-Host "║     Установка .NET Framework 4.8                              ║" -ForegroundColor Magenta
+    Write-Host "║     (потребуется перезагрузка после установки)                ║" -ForegroundColor Magenta
+    Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host ""
+
+    # Создание временной папки
+    if (-not (Test-Path $TempDir)) {
+        New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+    }
+
+    # Скачивание установщика
+    Write-Host "    Скачивание .NET Framework 4.8..." -ForegroundColor Gray
+    Write-Host "    Это веб-установщик (~1.5 МБ), остальное скачается при установке." -ForegroundColor DarkGray
+    Write-Host ""
+
+    try {
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $NetFrameworkUrl -OutFile $NetFrameworkInstaller -UseBasicParsing
+        $ProgressPreference = 'Continue'
+    }
+    catch {
+        Write-Err "Не удалось скачать .NET Framework!"
+        Write-Host "    Скачайте вручную: https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Yellow
+        return $false
+    }
+
+    Write-Success "Установщик скачан"
+    Write-Host ""
+    Write-Host "    Запуск установки .NET Framework 4.8..." -ForegroundColor Gray
+    Write-Host "    Следуйте инструкциям установщика." -ForegroundColor Yellow
+    Write-Host ""
+
+    # Запуск установщика (интерактивно, чтобы пользователь видел прогресс)
+    $process = Start-Process -FilePath $NetFrameworkInstaller -ArgumentList "/passive /norestart" -PassThru
+
+    # Анимация ожидания
+    $spinner = @('|', '/', '-', '\')
+    $i = 0
+    while (-not $process.HasExited) {
+        Write-Host "`r    Установка... $($spinner[$i % 4]) " -NoNewline
+        Start-Sleep -Milliseconds 500
+        $i++
+    }
+
+    $process.WaitForExit()
+    Write-Host ""
+
+    if ($process.ExitCode -eq 0) {
+        Write-Success ".NET Framework 4.8 установлен!"
+        return $true
+    }
+    elseif ($process.ExitCode -eq 3010) {
+        Write-Success ".NET Framework 4.8 установлен!"
+        Write-Warn "Требуется перезагрузка компьютера!"
+        Write-Host ""
+        Write-Host "    После перезагрузки запустите установщик снова." -ForegroundColor Yellow
+        $restart = Read-Host "    Перезагрузить сейчас? (Y/N)"
+        if ($restart -eq "Y" -or $restart -eq "y" -or $restart -eq "Д" -or $restart -eq "д") {
+            Write-Host "    Перезагрузка через 10 секунд..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 10
+            Restart-Computer -Force
+        }
+        return $false
+    }
+    elseif ($process.ExitCode -eq 1602) {
+        Write-Warn "Установка отменена пользователем"
+        return $false
+    }
+    else {
+        Write-Err "Ошибка установки .NET Framework (код: $($process.ExitCode))"
+        return $false
+    }
 }
 
 function Find-MSBuild {
@@ -188,17 +269,38 @@ function Install-App {
 
     $netVersion = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" -ErrorAction SilentlyContinue
     if ($null -eq $netVersion -or $netVersion.Release -lt 528040) {
-        Write-Err ".NET Framework 4.8 не установлен!"
+        Write-Warn ".NET Framework 4.8 не установлен!"
         Write-Host ""
-        Write-Host "    Скачайте и установите .NET Framework 4.8:" -ForegroundColor Yellow
-        Write-Host "    https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Cyan
+        Write-Host "    Для работы программы требуется .NET Framework 4.8." -ForegroundColor Yellow
         Write-Host ""
-        $openUrl = Read-Host "    Открыть страницу загрузки? (Y/N)"
-        if ($openUrl -eq "Y" -or $openUrl -eq "y") {
-            Start-Process "https://dotnet.microsoft.com/download/dotnet-framework/net48"
+
+        $installChoice = Read-Host "    Установить .NET Framework 4.8 автоматически? (Y/N)"
+
+        if ($installChoice -eq "Y" -or $installChoice -eq "y" -or $installChoice -eq "Д" -or $installChoice -eq "д") {
+            $success = Install-NetFramework
+
+            if (-not $success) {
+                Write-Host ""
+                Write-Host "    Установите .NET Framework 4.8 вручную и запустите установщик снова." -ForegroundColor Yellow
+                Read-Host "    Нажмите Enter для выхода"
+                exit 1
+            }
+
+            # Перепроверка после установки
+            $netVersion = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" -ErrorAction SilentlyContinue
+            if ($null -eq $netVersion -or $netVersion.Release -lt 528040) {
+                Write-Warn "Требуется перезагрузка для завершения установки .NET Framework."
+                Write-Host "    После перезагрузки запустите установщик снова." -ForegroundColor Yellow
+                Read-Host "    Нажмите Enter для выхода"
+                exit 1
+            }
         }
-        Read-Host "    После установки .NET Framework нажмите Enter"
-        exit 1
+        else {
+            Write-Host ""
+            Write-Host "    Скачайте вручную: https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Cyan
+            Read-Host "    Нажмите Enter для выхода"
+            exit 1
+        }
     }
     Write-Success ".NET Framework 4.8 установлен (версия: $($netVersion.Release))"
 

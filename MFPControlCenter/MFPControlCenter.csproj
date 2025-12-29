@@ -112,7 +112,7 @@
   <ItemGroup>
     <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
     <PackageReference Include="MaterialDesignColors" Version="2.1.4" />
-    <PackageReference Include="PDFsharp" Version="6.0.0" />
+    <PackageReference Include="PdfSharp" Version="1.50.5" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="WIA">
