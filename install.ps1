@@ -459,8 +459,12 @@ pause
 
     Write-Success "Uninstaller created"
 
-    if (Test-Path $TempDir) {
-        Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+    try {
+        if (Test-Path $TempDir) {
+            Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+        # Ignore cleanup errors
     }
 
     # Done!
