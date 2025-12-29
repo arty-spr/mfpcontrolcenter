@@ -91,6 +91,9 @@ namespace MFPControlCenter.Services
                     case ".rtf":
                         previews = RenderRtfFile(filePath, dpi);
                         break;
+                    case ".pdf":
+                        previews = RenderPdfDocument(filePath, dpi);
+                        break;
                     case ".jpg":
                     case ".jpeg":
                     case ".png":
@@ -203,6 +206,32 @@ namespace MFPControlCenter.Services
 
         #endregion
 
+        #region PDF Documents
+
+        private List<Image> RenderPdfDocument(string filePath, int dpi)
+        {
+            var pages = new List<Image>();
+
+            try
+            {
+                var pdfService = new PdfService();
+                pages = pdfService.PdfToImages(filePath, dpi);
+            }
+            catch (Exception ex)
+            {
+                pages.Add(CreateErrorImage($"Ошибка чтения PDF:\n{ex.Message}"));
+            }
+
+            if (pages.Count == 0)
+            {
+                pages.Add(CreatePlaceholderImage(filePath));
+            }
+
+            return pages;
+        }
+
+        #endregion
+
         #region Word Documents
 
         private int GetWordPageCount(string filePath)
@@ -245,17 +274,16 @@ namespace MFPControlCenter.Services
 
                 if (ExportWordToPdf(filePath, tempPdf))
                 {
-                    // Если есть библиотека для рендеринга PDF - используем её
-                    // Пока создаём заглушки
-                    var pdfService = new PdfService();
-                    int pageCount = pdfService.GetPageCount(tempPdf);
-
-                    for (int i = 0; i < pageCount; i++)
+                    try
                     {
-                        pages.Add(CreatePagePlaceholder($"Страница {i + 1}", pageCount, filePath, dpi));
+                        // Используем PdfService для реального рендеринга PDF
+                        var pdfService = new PdfService();
+                        pages = pdfService.PdfToImages(tempPdf, dpi);
                     }
-
-                    try { File.Delete(tempPdf); } catch { }
+                    finally
+                    {
+                        try { File.Delete(tempPdf); } catch { }
+                    }
                 }
                 else
                 {
@@ -266,6 +294,11 @@ namespace MFPControlCenter.Services
             catch (Exception ex)
             {
                 pages.Add(CreateErrorImage($"Ошибка чтения документа:\n{ex.Message}"));
+            }
+
+            if (pages.Count == 0)
+            {
+                pages.Add(CreatePlaceholderImage(filePath));
             }
 
             return pages;

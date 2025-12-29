@@ -85,7 +85,21 @@ namespace MFPControlCenter.Services
 
         public void PrintImages(List<Image> images, PrintSettings settings)
         {
-            _pagesToPrint = images;
+            // Apply image adjustments if any
+            if (settings.Brightness != 0 || settings.Contrast != 0 || settings.Sharpness > 0)
+            {
+                _pagesToPrint = new List<Image>();
+                foreach (var img in images)
+                {
+                    var adjusted = ApplyImageAdjustments(img, settings.Brightness, settings.Contrast, settings.Sharpness);
+                    _pagesToPrint.Add(adjusted);
+                }
+            }
+            else
+            {
+                _pagesToPrint = images;
+            }
+
             _currentPageIndex = 0;
 
             _printDocument = new PrintDocument();
@@ -284,6 +298,85 @@ namespace MFPControlCenter.Services
         private void ApplyOrientation(PrintDocument doc, Models.Orientation orientation)
         {
             doc.DefaultPageSettings.Landscape = orientation == Models.Orientation.Landscape;
+        }
+
+        private Image ApplyImageAdjustments(Image original, int brightness, int contrast, int sharpness)
+        {
+            var bitmap = new Bitmap(original.Width, original.Height);
+
+            // Apply brightness and contrast
+            float brightnessFactor = 1.0f + brightness / 100.0f;
+            float contrastFactor = 1.0f + contrast / 100.0f;
+
+            float[][] matrix = {
+                new float[] { contrastFactor, 0, 0, 0, 0 },
+                new float[] { 0, contrastFactor, 0, 0, 0 },
+                new float[] { 0, 0, contrastFactor, 0, 0 },
+                new float[] { 0, 0, 0, 1, 0 },
+                new float[] { brightnessFactor - 1, brightnessFactor - 1, brightnessFactor - 1, 0, 1 }
+            };
+
+            var colorMatrix = new System.Drawing.Imaging.ColorMatrix(matrix);
+            var attributes = new System.Drawing.Imaging.ImageAttributes();
+            attributes.SetColorMatrix(colorMatrix);
+
+            using (var g = Graphics.FromImage(bitmap))
+            {
+                g.DrawImage(original,
+                    new Rectangle(0, 0, bitmap.Width, bitmap.Height),
+                    0, 0, original.Width, original.Height,
+                    GraphicsUnit.Pixel, attributes);
+            }
+
+            // Apply sharpness if needed
+            if (sharpness > 0)
+            {
+                bitmap = ApplySharpness(bitmap, sharpness);
+            }
+
+            return bitmap;
+        }
+
+        private Bitmap ApplySharpness(Bitmap image, int amount)
+        {
+            // Simple sharpening using unsharp mask kernel
+            float factor = amount / 100.0f;
+            float[,] kernel = {
+                { 0, -factor, 0 },
+                { -factor, 1 + 4 * factor, -factor },
+                { 0, -factor, 0 }
+            };
+
+            var result = new Bitmap(image.Width, image.Height);
+
+            for (int x = 1; x < image.Width - 1; x++)
+            {
+                for (int y = 1; y < image.Height - 1; y++)
+                {
+                    float r = 0, g = 0, b = 0;
+
+                    for (int kx = -1; kx <= 1; kx++)
+                    {
+                        for (int ky = -1; ky <= 1; ky++)
+                        {
+                            var pixel = image.GetPixel(x + kx, y + ky);
+                            float kVal = kernel[kx + 1, ky + 1];
+                            r += pixel.R * kVal;
+                            g += pixel.G * kVal;
+                            b += pixel.B * kVal;
+                        }
+                    }
+
+                    r = Math.Max(0, Math.Min(255, r));
+                    g = Math.Max(0, Math.Min(255, g));
+                    b = Math.Max(0, Math.Min(255, b));
+
+                    result.SetPixel(x, y, Color.FromArgb((int)r, (int)g, (int)b));
+                }
+            }
+
+            image.Dispose();
+            return result;
         }
     }
 

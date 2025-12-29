@@ -393,10 +393,22 @@ namespace MFPControlCenter.Services
             dynamic vector = imageFile.FileData;
             byte[] bytes = (byte[])vector.BinaryData;
 
-            using (var ms = new MemoryStream(bytes))
+            // Create a copy of the image to avoid GDI+ errors
+            // (Image.FromStream requires the stream to stay open)
+            var ms = new MemoryStream(bytes);
+            var tempImage = Image.FromStream(ms);
+
+            // Create a new bitmap copy so we can close the stream
+            var bitmap = new Bitmap(tempImage.Width, tempImage.Height, tempImage.PixelFormat);
+            using (var g = Graphics.FromImage(bitmap))
             {
-                return Image.FromStream(ms);
+                g.DrawImage(tempImage, 0, 0);
             }
+
+            tempImage.Dispose();
+            ms.Dispose();
+
+            return bitmap;
         }
 
         private object GetDynamicPropertyValue(dynamic properties, string name)

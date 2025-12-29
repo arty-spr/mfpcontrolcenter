@@ -5,11 +5,13 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using MFPControlCenter.Helpers;
 using MFPControlCenter.Models;
 using MFPControlCenter.Services;
+using MFPControlCenter.Views;
 using Microsoft.Win32;
 
 namespace MFPControlCenter.ViewModels
@@ -36,6 +38,11 @@ namespace MFPControlCenter.ViewModels
         private int _currentPageIndex;
         private List<Image> _pageImages = new List<Image>();
 
+        // Image adjustment settings
+        private int _brightness = 0;
+        private int _contrast = 0;
+        private int _sharpness = 0;
+
         public ObservableCollection<string> AvailablePrinters { get; }
         public ObservableCollection<PaperSize> PaperSizes { get; }
         public ObservableCollection<PrintQuality> Qualities { get; }
@@ -47,6 +54,7 @@ namespace MFPControlCenter.ViewModels
         public ICommand NextPageCommand { get; }
         public ICommand FirstPageCommand { get; }
         public ICommand LastPageCommand { get; }
+        public ICommand OpenImageSettingsCommand { get; }
 
         public string SelectedPrinter
         {
@@ -173,6 +181,24 @@ namespace MFPControlCenter.ViewModels
 
         public bool HasMultiplePages => TotalPages > 1;
 
+        public int Brightness
+        {
+            get => _brightness;
+            set => SetProperty(ref _brightness, value);
+        }
+
+        public int Contrast
+        {
+            get => _contrast;
+            set => SetProperty(ref _contrast, value);
+        }
+
+        public int Sharpness
+        {
+            get => _sharpness;
+            set => SetProperty(ref _sharpness, value);
+        }
+
         public PrintViewModel()
         {
             _printService = new PrintService();
@@ -189,6 +215,7 @@ namespace MFPControlCenter.ViewModels
             NextPageCommand = new RelayCommand(NextPage, () => CurrentPageIndex < TotalPages - 1);
             FirstPageCommand = new RelayCommand(FirstPage, () => CurrentPageIndex > 0);
             LastPageCommand = new RelayCommand(LastPage, () => CurrentPageIndex < TotalPages - 1);
+            OpenImageSettingsCommand = new RelayCommand(OpenImageSettings);
 
             LoadPrinters();
         }
@@ -333,6 +360,19 @@ namespace MFPControlCenter.ViewModels
             CurrentPageIndex = TotalPages - 1;
         }
 
+        private void OpenImageSettings()
+        {
+            var dialog = new PrinterSettingsDialog(Brightness, Contrast, Sharpness);
+            dialog.Owner = Application.Current.MainWindow;
+
+            if (dialog.ShowDialog() == true)
+            {
+                Brightness = dialog.Brightness;
+                Contrast = dialog.Contrast;
+                Sharpness = dialog.Sharpness;
+            }
+        }
+
         private bool CanPrint()
         {
             return !IsPrinting &&
@@ -357,7 +397,10 @@ namespace MFPControlCenter.ViewModels
                     PageRange = PageRange,
                     PaperSize = SelectedPaperSize,
                     Quality = SelectedQuality,
-                    Orientation = SelectedOrientation
+                    Orientation = SelectedOrientation,
+                    Brightness = Brightness,
+                    Contrast = Contrast,
+                    Sharpness = Sharpness
                 };
 
                 await Task.Run(() => _printService.PrintFile(SelectedFilePath, settings));

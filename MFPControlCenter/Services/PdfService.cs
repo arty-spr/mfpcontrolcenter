@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using PdfiumViewer;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
@@ -62,17 +63,39 @@ namespace MFPControlCenter.Services
             }
         }
 
-        public List<Image> PdfToImages(string pdfPath)
+        public List<Image> PdfToImages(string pdfPath, int dpi = 150)
         {
             var images = new List<Image>();
 
-            // PDFsharp не поддерживает рендеринг PDF в изображения напрямую
-            // Для этого нужна дополнительная библиотека типа PdfiumViewer
-            // Здесь реализуем базовую заглушку
+            try
+            {
+                using (var document = PdfiumViewer.PdfDocument.Load(pdfPath))
+                {
+                    for (int i = 0; i < document.PageCount; i++)
+                    {
+                        var pageSize = document.PageSizes[i];
+                        int width = (int)(pageSize.Width * dpi / 72);
+                        int height = (int)(pageSize.Height * dpi / 72);
 
-            throw new NotImplementedException(
-                "Для конвертации PDF в изображения требуется дополнительная библиотека. " +
-                "Рекомендуется установить PdfiumViewer через NuGet.");
+                        using (var renderedImage = document.Render(i, width, height, dpi, dpi, false))
+                        {
+                            // Create a copy to avoid GDI+ issues
+                            var bitmap = new Bitmap(renderedImage.Width, renderedImage.Height);
+                            using (var g = Graphics.FromImage(bitmap))
+                            {
+                                g.DrawImage(renderedImage, 0, 0);
+                            }
+                            images.Add(bitmap);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Ошибка рендеринга PDF: {ex.Message}", ex);
+            }
+
+            return images;
         }
 
         public void MergePdfs(List<string> inputPaths, string outputPath)

@@ -11,6 +11,11 @@ namespace MFPControlCenter.Models
         public PaperSize PaperSize { get; set; } = PaperSize.A4;
         public PrintQuality Quality { get; set; } = PrintQuality.Normal;
         public Orientation Orientation { get; set; } = Orientation.Portrait;
+
+        // Image adjustments
+        public int Brightness { get; set; } = 0;  // -50 to +50
+        public int Contrast { get; set; } = 0;    // -50 to +50
+        public int Sharpness { get; set; } = 0;   // 0 to 100
     }
 
     public enum PaperSize
