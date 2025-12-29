@@ -10,15 +10,13 @@ namespace MFPControlCenter.Services
 {
     public class ScanService
     {
-        // WIA константы
-        private const string WIA_DEVICE_PROPERTY_MANUFACTURER = "Manufacturer";
-        private const string WIA_IPA_DATATYPE = "6146"; // Color/Grayscale/BW
-        private const string WIA_IPA_DEPTH = "4104";    // Bit depth
-        private const string WIA_IPS_XRES = "6147";     // Horizontal resolution
-        private const string WIA_IPS_YRES = "6148";     // Vertical resolution
-        private const string WIA_IPS_XEXTENT = "6151";  // Width in pixels
-        private const string WIA_IPS_YEXTENT = "6152";  // Height in pixels
-        private const string WIA_IPS_DOCUMENT_HANDLING_SELECT = "3088"; // Feeder/Flatbed
+        // WIA property IDs
+        private const string WIA_IPA_DATATYPE = "6146";
+        private const string WIA_IPS_XRES = "6147";
+        private const string WIA_IPS_YRES = "6148";
+        private const string WIA_IPS_XEXTENT = "6151";
+        private const string WIA_IPS_YEXTENT = "6152";
+        private const string WIA_IPS_DOCUMENT_HANDLING_SELECT = "3088";
 
         private const int WIA_DATA_TYPE_COLOR = 3;
         private const int WIA_DATA_TYPE_GRAYSCALE = 2;
@@ -36,26 +34,32 @@ namespace MFPControlCenter.Services
 
             try
             {
-                var deviceManager = new WIA.DeviceManager();
-
-                for (int i = 1; i <= deviceManager.DeviceInfos.Count; i++)
+                // Create WIA DeviceManager using late binding
+                Type deviceManagerType = Type.GetTypeFromProgID("WIA.DeviceManager");
+                if (deviceManagerType == null)
                 {
-                    var deviceInfo = deviceManager.DeviceInfos[i];
+                    throw new ScanException("WIA not available on this system");
+                }
 
-                    if (deviceInfo.Type == WIA.WiaDeviceType.ScannerDeviceType)
+                dynamic deviceManager = Activator.CreateInstance(deviceManagerType);
+
+                foreach (dynamic deviceInfo in deviceManager.DeviceInfos)
+                {
+                    // WiaDeviceType.ScannerDeviceType = 1
+                    if ((int)deviceInfo.Type == 1)
                     {
                         scanners.Add(new ScannerInfo
                         {
                             DeviceId = deviceInfo.DeviceID,
-                            Name = GetPropertyValue(deviceInfo.Properties, "Name")?.ToString() ?? "Unknown Scanner",
-                            Manufacturer = GetPropertyValue(deviceInfo.Properties, "Manufacturer")?.ToString() ?? ""
+                            Name = GetDynamicPropertyValue(deviceInfo.Properties, "Name")?.ToString() ?? "Unknown Scanner",
+                            Manufacturer = GetDynamicPropertyValue(deviceInfo.Properties, "Manufacturer")?.ToString() ?? ""
                         });
                     }
                 }
             }
             catch (COMException ex)
             {
-                throw new ScanException("Ошибка при получении списка сканеров: " + ex.Message, ex);
+                throw new ScanException("Error getting scanner list: " + ex.Message, ex);
             }
 
             return scanners;
@@ -71,7 +75,6 @@ namespace MFPControlCenter.Services
 
         public Image ScanPreview(ScanSettings settings)
         {
-            // Быстрое сканирование с низким разрешением для предпросмотра
             var previewSettings = new ScanSettings
             {
                 Source = settings.Source,
@@ -89,49 +92,49 @@ namespace MFPControlCenter.Services
                 var scanner = FindHPScanner();
                 if (scanner == null)
                 {
-                    throw new ScanException("HP сканер не найден");
+                    throw new ScanException("HP scanner not found");
                 }
 
-                var deviceManager = new WIA.DeviceManager();
-                WIA.Device device = null;
+                Type deviceManagerType = Type.GetTypeFromProgID("WIA.DeviceManager");
+                dynamic deviceManager = Activator.CreateInstance(deviceManagerType);
+                dynamic device = null;
 
-                for (int i = 1; i <= deviceManager.DeviceInfos.Count; i++)
+                foreach (dynamic deviceInfo in deviceManager.DeviceInfos)
                 {
-                    if (deviceManager.DeviceInfos[i].DeviceID == scanner.DeviceId)
+                    if (deviceInfo.DeviceID == scanner.DeviceId)
                     {
-                        device = deviceManager.DeviceInfos[i].Connect();
+                        device = deviceInfo.Connect();
                         break;
                     }
                 }
 
                 if (device == null)
                 {
-                    throw new ScanException("Не удалось подключиться к сканеру");
+                    throw new ScanException("Failed to connect to scanner");
                 }
 
-                // Выбор источника (планшет или ADF)
-                var item = SelectScanSource(device, settings.Source);
-
-                // Настройка параметров сканирования
+                // Select scan source
+                dynamic item = device.Items[1];
+                SelectScanSource(item, settings.Source);
                 SetScannerSettings(item, settings);
 
-                OnProgress(10, "Сканирование...");
+                OnProgress(10, "Scanning...");
 
-                // Выполнение сканирования
-                var imageFile = (WIA.ImageFile)item.Transfer(WIA.FormatID.wiaFormatBMP);
+                // Perform scan - FormatID for BMP
+                string wiaFormatBMP = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}";
+                dynamic imageFile = item.Transfer(wiaFormatBMP);
 
-                OnProgress(80, "Обработка изображения...");
+                OnProgress(80, "Processing image...");
 
-                // Конвертация в Image
                 var image = ConvertToImage(imageFile);
 
-                OnProgress(100, "Готово");
+                OnProgress(100, "Done");
 
                 return image;
             }
             catch (COMException ex)
             {
-                throw new ScanException("Ошибка сканирования: " + GetWiaErrorMessage(ex.ErrorCode), ex);
+                throw new ScanException("Scan error: " + GetWiaErrorMessage(ex.ErrorCode), ex);
             }
         }
 
@@ -141,12 +144,10 @@ namespace MFPControlCenter.Services
 
             if (settings.Source == ScanSource.ADF)
             {
-                // Сканирование из автоподатчика
                 pages = ScanFromAdf(settings);
             }
             else
             {
-                // Для планшета сканируем одну страницу
                 var page = ScanSinglePage(settings);
                 if (page != null)
                 {
@@ -166,49 +167,51 @@ namespace MFPControlCenter.Services
                 var scanner = FindHPScanner();
                 if (scanner == null)
                 {
-                    throw new ScanException("HP сканер не найден");
+                    throw new ScanException("HP scanner not found");
                 }
 
-                var deviceManager = new WIA.DeviceManager();
-                WIA.Device device = null;
+                Type deviceManagerType = Type.GetTypeFromProgID("WIA.DeviceManager");
+                dynamic deviceManager = Activator.CreateInstance(deviceManagerType);
+                dynamic device = null;
 
-                for (int i = 1; i <= deviceManager.DeviceInfos.Count; i++)
+                foreach (dynamic deviceInfo in deviceManager.DeviceInfos)
                 {
-                    if (deviceManager.DeviceInfos[i].DeviceID == scanner.DeviceId)
+                    if (deviceInfo.DeviceID == scanner.DeviceId)
                     {
-                        device = deviceManager.DeviceInfos[i].Connect();
+                        device = deviceInfo.Connect();
                         break;
                     }
                 }
 
                 if (device == null)
                 {
-                    throw new ScanException("Не удалось подключиться к сканеру");
+                    throw new ScanException("Failed to connect to scanner");
                 }
 
-                var item = SelectScanSource(device, ScanSource.ADF);
+                dynamic item = device.Items[1];
+                SelectScanSource(item, ScanSource.ADF);
                 SetScannerSettings(item, settings);
 
                 int pageNumber = 0;
                 bool hasMorePages = true;
+                string wiaFormatBMP = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}";
 
                 while (hasMorePages)
                 {
                     try
                     {
                         pageNumber++;
-                        OnProgress((pageNumber * 10) % 90, $"Сканирование страницы {pageNumber}...");
+                        OnProgress((pageNumber * 10) % 90, $"Scanning page {pageNumber}...");
 
-                        var imageFile = (WIA.ImageFile)item.Transfer(WIA.FormatID.wiaFormatBMP);
+                        dynamic imageFile = item.Transfer(wiaFormatBMP);
                         var image = ConvertToImage(imageFile);
                         pages.Add(image);
 
-                        // Проверка наличия следующей страницы
                         hasMorePages = HasMorePagesInAdf(device);
                     }
                     catch (COMException ex)
                     {
-                        // WIA_ERROR_PAPER_EMPTY означает, что в ADF больше нет страниц
+                        // WIA_ERROR_PAPER_EMPTY
                         if (ex.ErrorCode == unchecked((int)0x80210003))
                         {
                             hasMorePages = false;
@@ -220,20 +223,18 @@ namespace MFPControlCenter.Services
                     }
                 }
 
-                OnProgress(100, $"Отсканировано страниц: {pages.Count}");
+                OnProgress(100, $"Scanned pages: {pages.Count}");
             }
             catch (COMException ex)
             {
-                throw new ScanException("Ошибка при сканировании из ADF: " + GetWiaErrorMessage(ex.ErrorCode), ex);
+                throw new ScanException("ADF scan error: " + GetWiaErrorMessage(ex.ErrorCode), ex);
             }
 
             return pages;
         }
 
-        public void SaveScan(Image image, string filePath, ImageFormat format)
+        public void SaveScan(Image image, string filePath, Models.ImageFormat format)
         {
-            var extension = Path.GetExtension(filePath).ToLower();
-
             switch (format)
             {
                 case Models.ImageFormat.JPEG:
@@ -255,7 +256,7 @@ namespace MFPControlCenter.Services
             }
         }
 
-        public void SaveMultipleScans(List<Image> images, string filePath, ImageFormat format)
+        public void SaveMultipleScans(List<Image> images, string filePath, Models.ImageFormat format)
         {
             if (images == null || images.Count == 0) return;
 
@@ -270,7 +271,6 @@ namespace MFPControlCenter.Services
             }
             else
             {
-                // Для других форматов сохраняем каждую страницу отдельно
                 for (int i = 0; i < images.Count; i++)
                 {
                     var pageFileName = Path.Combine(
@@ -319,33 +319,28 @@ namespace MFPControlCenter.Services
             return null;
         }
 
-        private WIA.Item SelectScanSource(WIA.Device device, ScanSource source)
+        private void SelectScanSource(dynamic item, ScanSource source)
         {
-            WIA.Item item = device.Items[1];
-
             try
             {
-                // Попытка выбрать источник
                 int sourceValue = source == ScanSource.ADF ? FEEDER : FLATBED;
-                SetProperty(item.Properties, WIA_IPS_DOCUMENT_HANDLING_SELECT, sourceValue);
+                SetDynamicProperty(item.Properties, WIA_IPS_DOCUMENT_HANDLING_SELECT, sourceValue);
             }
             catch
             {
-                // Если не удалось установить источник, используем по умолчанию
+                // Use default if setting fails
             }
-
-            return item;
         }
 
-        private void SetScannerSettings(WIA.Item item, ScanSettings settings)
+        private void SetScannerSettings(dynamic item, ScanSettings settings)
         {
             try
             {
-                // Установка DPI
-                SetProperty(item.Properties, WIA_IPS_XRES, settings.Dpi);
-                SetProperty(item.Properties, WIA_IPS_YRES, settings.Dpi);
+                // Set DPI
+                SetDynamicProperty(item.Properties, WIA_IPS_XRES, settings.Dpi);
+                SetDynamicProperty(item.Properties, WIA_IPS_YRES, settings.Dpi);
 
-                // Установка цветового режима
+                // Set color mode
                 int colorType;
                 switch (settings.ColorMode)
                 {
@@ -362,25 +357,25 @@ namespace MFPControlCenter.Services
                         colorType = WIA_DATA_TYPE_COLOR;
                         break;
                 }
-                SetProperty(item.Properties, WIA_IPA_DATATYPE, colorType);
+                SetDynamicProperty(item.Properties, WIA_IPA_DATATYPE, colorType);
 
-                // Установка области сканирования (A4 при заданном DPI)
-                int widthPixels = (int)(8.27 * settings.Dpi);  // A4 width in inches
-                int heightPixels = (int)(11.69 * settings.Dpi); // A4 height in inches
-                SetProperty(item.Properties, WIA_IPS_XEXTENT, widthPixels);
-                SetProperty(item.Properties, WIA_IPS_YEXTENT, heightPixels);
+                // Set scan area (A4 at given DPI)
+                int widthPixels = (int)(8.27 * settings.Dpi);
+                int heightPixels = (int)(11.69 * settings.Dpi);
+                SetDynamicProperty(item.Properties, WIA_IPS_XEXTENT, widthPixels);
+                SetDynamicProperty(item.Properties, WIA_IPS_YEXTENT, heightPixels);
             }
             catch
             {
-                // Игнорируем ошибки настройки, используем значения по умолчанию
+                // Ignore setting errors, use defaults
             }
         }
 
-        private bool HasMorePagesInAdf(WIA.Device device)
+        private bool HasMorePagesInAdf(dynamic device)
         {
             try
             {
-                var prop = GetPropertyValue(device.Properties, "Document Handling Status");
+                var prop = GetDynamicPropertyValue(device.Properties, "Document Handling Status");
                 if (prop != null)
                 {
                     int status = Convert.ToInt32(prop);
@@ -393,10 +388,10 @@ namespace MFPControlCenter.Services
             return false;
         }
 
-        private Image ConvertToImage(WIA.ImageFile imageFile)
+        private Image ConvertToImage(dynamic imageFile)
         {
-            var vector = imageFile.FileData;
-            var bytes = (byte[])vector.get_BinaryData();
+            dynamic vector = imageFile.FileData;
+            byte[] bytes = (byte[])vector.BinaryData;
 
             using (var ms = new MemoryStream(bytes))
             {
@@ -404,23 +399,23 @@ namespace MFPControlCenter.Services
             }
         }
 
-        private object GetPropertyValue(WIA.IProperties properties, string name)
+        private object GetDynamicPropertyValue(dynamic properties, string name)
         {
-            foreach (WIA.Property prop in properties)
+            foreach (dynamic prop in properties)
             {
                 if (prop.Name == name)
-                    return prop.get_Value();
+                    return prop.Value;
             }
             return null;
         }
 
-        private void SetProperty(WIA.IProperties properties, string propertyId, object value)
+        private void SetDynamicProperty(dynamic properties, string propertyId, object value)
         {
-            foreach (WIA.Property prop in properties)
+            foreach (dynamic prop in properties)
             {
                 if (prop.PropertyID.ToString() == propertyId)
                 {
-                    prop.set_Value(value);
+                    prop.Value = value;
                     return;
                 }
             }
@@ -430,16 +425,16 @@ namespace MFPControlCenter.Services
         {
             switch (unchecked((uint)errorCode))
             {
-                case 0x80210001: return "Общая ошибка WIA";
-                case 0x80210002: return "Бумага замята";
-                case 0x80210003: return "Нет бумаги в податчике";
-                case 0x80210005: return "Устройство занято";
-                case 0x80210006: return "Устройство отключено";
-                case 0x80210009: return "Некорректные настройки";
-                case 0x8021000C: return "Крышка сканера открыта";
-                case 0x8021000D: return "Лампа сканера выключена";
-                case 0x80210010: return "Устройство не найдено";
-                default: return $"Код ошибки: 0x{errorCode:X8}";
+                case 0x80210001: return "General WIA error";
+                case 0x80210002: return "Paper jam";
+                case 0x80210003: return "No paper in feeder";
+                case 0x80210005: return "Device busy";
+                case 0x80210006: return "Device offline";
+                case 0x80210009: return "Invalid settings";
+                case 0x8021000C: return "Scanner cover open";
+                case 0x8021000D: return "Scanner lamp off";
+                case 0x80210010: return "Device not found";
+                default: return $"Error code: 0x{errorCode:X8}";
             }
         }
 

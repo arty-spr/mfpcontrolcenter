@@ -114,16 +114,5 @@
     <PackageReference Include="MaterialDesignColors" Version="2.1.4" />
     <PackageReference Include="PdfSharp" Version="1.50.5" />
   </ItemGroup>
-  <ItemGroup>
-    <COMReference Include="WIA">
-      <Guid>{94A0E92D-43C0-494E-AC29-FD45948A5221}</Guid>
-      <VersionMajor>2</VersionMajor>
-      <VersionMinor>0</VersionMinor>
-      <Lcid>0</Lcid>
-      <WrapperTool>tlbimp</WrapperTool>
-      <Isolated>False</Isolated>
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-    </COMReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
