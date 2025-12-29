@@ -1,6 +1,6 @@
 #Requires -Version 5.1
-# MFP Control Center - Установщик (PowerShell)
-# Для HP LaserJet M1536dnf
+# MFP Control Center - Installer (PowerShell)
+# For HP LaserJet M1536dnf
 
 param(
     [switch]$SkipBuild,
@@ -8,9 +8,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Host.UI.RawUI.WindowTitle = "MFP Control Center - Установка"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "MFP Control Center - Install"
 
-# Настройки
+# Settings
 $AppName = "MFP Control Center"
 $InstallDir = "$env:ProgramFiles\MFP Control Center"
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
@@ -18,21 +19,19 @@ $StartMenuPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $TempDir = "$env:TEMP\MFPControlCenter_Install"
 
-# URL для скачивания Build Tools
+# URLs
 $BuildToolsUrl = "https://aka.ms/vs/17/release/vs_BuildTools.exe"
 $BuildToolsInstaller = "$TempDir\vs_BuildTools.exe"
-
-# URL для скачивания .NET Framework 4.8
 $NetFrameworkUrl = "https://go.microsoft.com/fwlink/?linkid=2088631"
 $NetFrameworkInstaller = "$TempDir\ndp48-web.exe"
 
 function Write-Header {
     Clear-Host
     Write-Host ""
-    Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "║         MFP Control Center - Установщик                       ║" -ForegroundColor Cyan
-    Write-Host "║         Для HP LaserJet M1536dnf                              ║" -ForegroundColor Cyan
-    Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host "=================================================================" -ForegroundColor Cyan
+    Write-Host "         MFP Control Center - Installer                          " -ForegroundColor Cyan
+    Write-Host "         For HP LaserJet M1536dnf                                " -ForegroundColor Cyan
+    Write-Host "=================================================================" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -64,20 +63,17 @@ function Test-Administrator {
 
 function Install-NetFramework {
     Write-Host ""
-    Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║     Установка .NET Framework 4.8                              ║" -ForegroundColor Magenta
-    Write-Host "║     (потребуется перезагрузка после установки)                ║" -ForegroundColor Magenta
-    Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host "=================================================================" -ForegroundColor Magenta
+    Write-Host "     Installing .NET Framework 4.8                               " -ForegroundColor Magenta
+    Write-Host "     (reboot required after installation)                        " -ForegroundColor Magenta
+    Write-Host "=================================================================" -ForegroundColor Magenta
     Write-Host ""
 
-    # Создание временной папки
     if (-not (Test-Path $TempDir)) {
         New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
     }
 
-    # Скачивание установщика
-    Write-Host "    Скачивание .NET Framework 4.8..." -ForegroundColor Gray
-    Write-Host "    Это веб-установщик (~1.5 МБ), остальное скачается при установке." -ForegroundColor DarkGray
+    Write-Host "    Downloading .NET Framework 4.8..." -ForegroundColor Gray
     Write-Host ""
 
     try {
@@ -86,25 +82,22 @@ function Install-NetFramework {
         $ProgressPreference = 'Continue'
     }
     catch {
-        Write-Err "Не удалось скачать .NET Framework!"
-        Write-Host "    Скачайте вручную: https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Yellow
+        Write-Err "Failed to download .NET Framework!"
+        Write-Host "    Download manually: https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Yellow
         return $false
     }
 
-    Write-Success "Установщик скачан"
+    Write-Success "Installer downloaded"
     Write-Host ""
-    Write-Host "    Запуск установки .NET Framework 4.8..." -ForegroundColor Gray
-    Write-Host "    Следуйте инструкциям установщика." -ForegroundColor Yellow
+    Write-Host "    Starting .NET Framework 4.8 installation..." -ForegroundColor Gray
     Write-Host ""
 
-    # Запуск установщика (интерактивно, чтобы пользователь видел прогресс)
     $process = Start-Process -FilePath $NetFrameworkInstaller -ArgumentList "/passive /norestart" -PassThru
 
-    # Анимация ожидания
     $spinner = @('|', '/', '-', '\')
     $i = 0
     while (-not $process.HasExited) {
-        Write-Host "`r    Установка... $($spinner[$i % 4]) " -NoNewline
+        Write-Host "`r    Installing... $($spinner[$i % 4]) " -NoNewline
         Start-Sleep -Milliseconds 500
         $i++
     }
@@ -113,40 +106,38 @@ function Install-NetFramework {
     Write-Host ""
 
     if ($process.ExitCode -eq 0) {
-        Write-Success ".NET Framework 4.8 установлен!"
+        Write-Success ".NET Framework 4.8 installed!"
         return $true
     }
     elseif ($process.ExitCode -eq 3010) {
-        Write-Success ".NET Framework 4.8 установлен!"
-        Write-Warn "Требуется перезагрузка компьютера!"
+        Write-Success ".NET Framework 4.8 installed!"
+        Write-Warn "Reboot required!"
         Write-Host ""
-        Write-Host "    После перезагрузки запустите установщик снова." -ForegroundColor Yellow
-        $restart = Read-Host "    Перезагрузить сейчас? (Y/N)"
-        if ($restart -eq "Y" -or $restart -eq "y" -or $restart -eq "Д" -or $restart -eq "д") {
-            Write-Host "    Перезагрузка через 10 секунд..." -ForegroundColor Yellow
+        Write-Host "    Run installer again after reboot." -ForegroundColor Yellow
+        $restart = Read-Host "    Reboot now? (Y/N)"
+        if ($restart -eq "Y" -or $restart -eq "y") {
+            Write-Host "    Rebooting in 10 seconds..." -ForegroundColor Yellow
             Start-Sleep -Seconds 10
             Restart-Computer -Force
         }
         return $false
     }
     elseif ($process.ExitCode -eq 1602) {
-        Write-Warn "Установка отменена пользователем"
+        Write-Warn "Installation cancelled by user"
         return $false
     }
     else {
-        Write-Err "Ошибка установки .NET Framework (код: $($process.ExitCode))"
+        Write-Err "Installation error (code: $($process.ExitCode))"
         return $false
     }
 }
 
 function Find-MSBuild {
     $msbuildPaths = @(
-        # Visual Studio 2022
         "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe",
         "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe",
         "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
         "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
-        # Visual Studio 2019
         "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe",
         "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\MSBuild.exe",
         "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
@@ -163,41 +154,37 @@ function Find-MSBuild {
 
 function Install-BuildTools {
     Write-Host ""
-    Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "║     Установка Visual Studio Build Tools 2022                  ║" -ForegroundColor Magenta
-    Write-Host "║     (бесплатно, ~2-3 ГБ, займёт 5-15 минут)                    ║" -ForegroundColor Magenta
-    Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host "=================================================================" -ForegroundColor Magenta
+    Write-Host "     Installing Visual Studio Build Tools 2022                   " -ForegroundColor Magenta
+    Write-Host "     (free, ~2-3 GB, takes 5-15 minutes)                         " -ForegroundColor Magenta
+    Write-Host "=================================================================" -ForegroundColor Magenta
     Write-Host ""
 
-    # Создание временной папки
     if (-not (Test-Path $TempDir)) {
         New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
     }
 
-    # Скачивание установщика
-    Write-Host "    Скачивание установщика Build Tools..." -ForegroundColor Gray
+    Write-Host "    Downloading Build Tools installer..." -ForegroundColor Gray
     Write-Host "    URL: $BuildToolsUrl" -ForegroundColor DarkGray
     Write-Host ""
 
     try {
-        # Прогресс-бар для скачивания
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $BuildToolsUrl -OutFile $BuildToolsInstaller -UseBasicParsing
         $ProgressPreference = 'Continue'
     }
     catch {
-        Write-Err "Не удалось скачать Build Tools!"
-        Write-Host "    Скачайте вручную: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Yellow
+        Write-Err "Failed to download Build Tools!"
+        Write-Host "    Download manually: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Yellow
         return $false
     }
 
-    Write-Success "Установщик скачан"
+    Write-Success "Installer downloaded"
     Write-Host ""
-    Write-Host "    Запуск установки Build Tools..." -ForegroundColor Gray
-    Write-Host "    Это может занять 5-15 минут. Пожалуйста, подождите." -ForegroundColor Yellow
+    Write-Host "    Starting Build Tools installation..." -ForegroundColor Gray
+    Write-Host "    This may take 5-15 minutes. Please wait." -ForegroundColor Yellow
     Write-Host ""
 
-    # Установка с нужными компонентами для WPF/.NET Framework
     $installArgs = @(
         "--quiet",
         "--wait",
@@ -213,11 +200,10 @@ function Install-BuildTools {
 
     $process = Start-Process -FilePath $BuildToolsInstaller -ArgumentList $installArgs -PassThru
 
-    # Анимация ожидания
     $spinner = @('|', '/', '-', '\')
     $i = 0
     while (-not $process.HasExited) {
-        Write-Host "`r    Установка... $($spinner[$i % 4]) " -NoNewline
+        Write-Host "`r    Installing... $($spinner[$i % 4]) " -NoNewline
         Start-Sleep -Milliseconds 500
         $i++
     }
@@ -226,14 +212,14 @@ function Install-BuildTools {
     Write-Host ""
 
     if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
-        Write-Success "Build Tools установлены!"
+        Write-Success "Build Tools installed!"
 
         if ($process.ExitCode -eq 3010) {
-            Write-Warn "Требуется перезагрузка компьютера для завершения установки."
-            $restart = Read-Host "    Перезагрузить сейчас? (Y/N)"
-            if ($restart -eq "Y" -or $restart -eq "y" -or $restart -eq "Д" -or $restart -eq "д") {
-                Write-Host "    Перезагрузка через 10 секунд..." -ForegroundColor Yellow
-                Write-Host "    После перезагрузки запустите установщик снова." -ForegroundColor Yellow
+            Write-Warn "Reboot required to complete installation."
+            $restart = Read-Host "    Reboot now? (Y/N)"
+            if ($restart -eq "Y" -or $restart -eq "y") {
+                Write-Host "    Rebooting in 10 seconds..." -ForegroundColor Yellow
+                Write-Host "    Run installer again after reboot." -ForegroundColor Yellow
                 Start-Sleep -Seconds 10
                 Restart-Computer -Force
                 exit
@@ -242,7 +228,7 @@ function Install-BuildTools {
         return $true
     }
     else {
-        Write-Err "Ошибка установки Build Tools (код: $($process.ExitCode))"
+        Write-Err "Build Tools installation error (code: $($process.ExitCode))"
         return $false
     }
 }
@@ -250,125 +236,116 @@ function Install-BuildTools {
 function Install-App {
     Write-Header
 
-    # Проверка прав администратора
     if (-not (Test-Administrator)) {
-        Write-Warn "Требуются права администратора!"
-        Write-Host "    Перезапуск с правами администратора..." -ForegroundColor Yellow
+        Write-Warn "Administrator rights required!"
+        Write-Host "    Restarting with admin rights..." -ForegroundColor Yellow
         Start-Sleep -Seconds 2
         Start-Process PowerShell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
         exit
     }
 
-    Write-Success "Запущено с правами администратора"
+    Write-Success "Running as Administrator"
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════
-    # 1. Проверка .NET Framework
-    # ═══════════════════════════════════════════════════════════════
-    Write-Step 1 7 "Проверка .NET Framework 4.8..."
+    # Step 1: Check .NET Framework
+    Write-Step 1 7 "Checking .NET Framework 4.8..."
 
     $netVersion = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" -ErrorAction SilentlyContinue
     if ($null -eq $netVersion -or $netVersion.Release -lt 528040) {
-        Write-Warn ".NET Framework 4.8 не установлен!"
+        Write-Warn ".NET Framework 4.8 not installed!"
         Write-Host ""
-        Write-Host "    Для работы программы требуется .NET Framework 4.8." -ForegroundColor Yellow
+        Write-Host "    .NET Framework 4.8 is required." -ForegroundColor Yellow
         Write-Host ""
 
-        $installChoice = Read-Host "    Установить .NET Framework 4.8 автоматически? (Y/N)"
+        $installChoice = Read-Host "    Install .NET Framework 4.8 automatically? (Y/N)"
 
-        if ($installChoice -eq "Y" -or $installChoice -eq "y" -or $installChoice -eq "Д" -or $installChoice -eq "д") {
+        if ($installChoice -eq "Y" -or $installChoice -eq "y") {
             $success = Install-NetFramework
 
             if (-not $success) {
                 Write-Host ""
-                Write-Host "    Установите .NET Framework 4.8 вручную и запустите установщик снова." -ForegroundColor Yellow
-                Read-Host "    Нажмите Enter для выхода"
+                Write-Host "    Install .NET Framework 4.8 manually and run installer again." -ForegroundColor Yellow
+                Read-Host "    Press Enter to exit"
                 exit 1
             }
 
-            # Перепроверка после установки
             $netVersion = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" -ErrorAction SilentlyContinue
             if ($null -eq $netVersion -or $netVersion.Release -lt 528040) {
-                Write-Warn "Требуется перезагрузка для завершения установки .NET Framework."
-                Write-Host "    После перезагрузки запустите установщик снова." -ForegroundColor Yellow
-                Read-Host "    Нажмите Enter для выхода"
+                Write-Warn "Reboot required to complete .NET Framework installation."
+                Write-Host "    Run installer again after reboot." -ForegroundColor Yellow
+                Read-Host "    Press Enter to exit"
                 exit 1
             }
         }
         else {
             Write-Host ""
-            Write-Host "    Скачайте вручную: https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Cyan
-            Read-Host "    Нажмите Enter для выхода"
+            Write-Host "    Download manually: https://dotnet.microsoft.com/download/dotnet-framework/net48" -ForegroundColor Cyan
+            Read-Host "    Press Enter to exit"
             exit 1
         }
     }
-    Write-Success ".NET Framework 4.8 установлен (версия: $($netVersion.Release))"
+    Write-Success ".NET Framework 4.8 installed (version: $($netVersion.Release))"
 
     if (-not $SkipBuild) {
-        # ═══════════════════════════════════════════════════════════════
-        # 2. Поиск MSBuild / Установка Build Tools
-        # ═══════════════════════════════════════════════════════════════
-        Write-Step 2 7 "Поиск MSBuild..."
+        # Step 2: Find MSBuild
+        Write-Step 2 7 "Searching for MSBuild..."
 
         $msbuild = Find-MSBuild
 
         if (-not $msbuild) {
-            Write-Warn "MSBuild не найден!"
+            Write-Warn "MSBuild not found!"
             Write-Host ""
-            Write-Host "    Visual Studio или Build Tools не установлены." -ForegroundColor Yellow
-            Write-Host "    Для сборки программы нужен MSBuild из Build Tools." -ForegroundColor Yellow
+            Write-Host "    Visual Studio or Build Tools not installed." -ForegroundColor Yellow
+            Write-Host "    MSBuild from Build Tools is required to build the project." -ForegroundColor Yellow
             Write-Host ""
 
-            $installChoice = Read-Host "    Установить Build Tools автоматически? (Y/N)"
+            $installChoice = Read-Host "    Install Build Tools automatically? (Y/N)"
 
-            if ($installChoice -eq "Y" -or $installChoice -eq "y" -or $installChoice -eq "Д" -or $installChoice -eq "д") {
+            if ($installChoice -eq "Y" -or $installChoice -eq "y") {
                 $success = Install-BuildTools
 
                 if ($success) {
-                    # Повторный поиск MSBuild после установки
                     $msbuild = Find-MSBuild
 
                     if (-not $msbuild) {
-                        Write-Err "MSBuild всё ещё не найден после установки!"
-                        Write-Host "    Попробуйте перезагрузить компьютер и запустить установщик снова." -ForegroundColor Yellow
-                        Read-Host "    Нажмите Enter для выхода"
+                        Write-Err "MSBuild still not found after installation!"
+                        Write-Host "    Try rebooting and running installer again." -ForegroundColor Yellow
+                        Read-Host "    Press Enter to exit"
                         exit 1
                     }
                 }
                 else {
                     Write-Host ""
-                    Write-Host "    Альтернативный вариант:" -ForegroundColor Yellow
-                    Write-Host "    1. Скачайте Build Tools вручную:" -ForegroundColor Gray
+                    Write-Host "    Alternative:" -ForegroundColor Yellow
+                    Write-Host "    1. Download Build Tools manually:" -ForegroundColor Gray
                     Write-Host "       https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Cyan
-                    Write-Host "    2. При установке выберите '.NET desktop build tools'" -ForegroundColor Gray
-                    Write-Host "    3. После установки запустите этот скрипт снова" -ForegroundColor Gray
-                    Read-Host "    Нажмите Enter для выхода"
+                    Write-Host "    2. Select '.NET desktop build tools' during installation" -ForegroundColor Gray
+                    Write-Host "    3. Run this installer again" -ForegroundColor Gray
+                    Read-Host "    Press Enter to exit"
                     exit 1
                 }
             }
             else {
                 Write-Host ""
-                Write-Host "    Для установки вручную:" -ForegroundColor Yellow
-                Write-Host "    1. Скачайте: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Cyan
-                Write-Host "    2. При установке выберите '.NET desktop build tools'" -ForegroundColor Gray
-                Write-Host "    3. Запустите этот скрипт снова" -ForegroundColor Gray
-                Read-Host "    Нажмите Enter для выхода"
+                Write-Host "    Manual installation:" -ForegroundColor Yellow
+                Write-Host "    1. Download: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Cyan
+                Write-Host "    2. Select '.NET desktop build tools' during installation" -ForegroundColor Gray
+                Write-Host "    3. Run this installer again" -ForegroundColor Gray
+                Read-Host "    Press Enter to exit"
                 exit 1
             }
         }
 
-        Write-Success "MSBuild найден: $msbuild"
+        Write-Success "MSBuild found: $msbuild"
 
-        # ═══════════════════════════════════════════════════════════════
-        # 3. Восстановление NuGet пакетов
-        # ═══════════════════════════════════════════════════════════════
-        Write-Step 3 7 "Восстановление NuGet пакетов..."
+        # Step 3: Restore NuGet packages
+        Write-Step 3 7 "Restoring NuGet packages..."
 
         Set-Location $ScriptDir
 
         $nugetPath = Join-Path $ScriptDir "nuget.exe"
         if (-not (Test-Path $nugetPath)) {
-            Write-Host "    Скачивание NuGet..." -ForegroundColor Gray
+            Write-Host "    Downloading NuGet..." -ForegroundColor Gray
             $ProgressPreference = 'SilentlyContinue'
             Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile $nugetPath -UseBasicParsing
             $ProgressPreference = 'Continue'
@@ -376,42 +353,37 @@ function Install-App {
 
         $nugetOutput = & $nugetPath restore "MFPControlCenter.sln" -NonInteractive 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка восстановления пакетов!"
+            Write-Err "Package restore failed!"
             Write-Host $nugetOutput -ForegroundColor Red
-            Read-Host "Нажмите Enter для выхода"
+            Read-Host "Press Enter to exit"
             exit 1
         }
-        Write-Success "NuGet пакеты восстановлены"
+        Write-Success "NuGet packages restored"
 
-        # ═══════════════════════════════════════════════════════════════
-        # 4. Сборка проекта
-        # ═══════════════════════════════════════════════════════════════
-        Write-Step 4 7 "Сборка проекта (это может занять минуту)..."
+        # Step 4: Build project
+        Write-Step 4 7 "Building project (this may take a minute)..."
 
         $buildOutput = & $msbuild "MFPControlCenter.sln" /p:Configuration=Release /p:Platform="Any CPU" /t:Build /v:minimal /nologo 2>&1
 
         if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка сборки!"
+            Write-Err "Build failed!"
             Write-Host ""
-            Write-Host "Вывод компилятора:" -ForegroundColor Yellow
+            Write-Host "Compiler output:" -ForegroundColor Yellow
             Write-Host $buildOutput -ForegroundColor Red
-            Read-Host "Нажмите Enter для выхода"
+            Read-Host "Press Enter to exit"
             exit 1
         }
-        Write-Success "Проект успешно собран"
+        Write-Success "Project built successfully"
     }
     else {
-        Write-Step 2 7 "Пропуск поиска MSBuild (режим SkipBuild)..."
-        Write-Step 3 7 "Пропуск восстановления пакетов..."
-        Write-Step 4 7 "Пропуск сборки..."
+        Write-Step 2 7 "Skipping MSBuild search (SkipBuild mode)..."
+        Write-Step 3 7 "Skipping package restore..."
+        Write-Step 4 7 "Skipping build..."
     }
 
-    # ═══════════════════════════════════════════════════════════════
-    # 5. Копирование файлов
-    # ═══════════════════════════════════════════════════════════════
-    Write-Step 5 7 "Копирование файлов в $InstallDir..."
+    # Step 5: Copy files
+    Write-Step 5 7 "Copying files to $InstallDir..."
 
-    # Поиск папки с собранными файлами
     $sourcePath = Join-Path $ScriptDir "MFPControlCenter\bin\Release"
     if (-not (Test-Path $sourcePath)) {
         $sourcePath = Join-Path $ScriptDir "bin\Release"
@@ -421,118 +393,106 @@ function Install-App {
     }
 
     if (-not (Test-Path $sourcePath)) {
-        Write-Err "Не найдена папка с собранными файлами!"
-        Write-Host "    Ожидалось: MFPControlCenter\bin\Release" -ForegroundColor Yellow
-        Read-Host "    Нажмите Enter для выхода"
+        Write-Err "Build output folder not found!"
+        Write-Host "    Expected: MFPControlCenter\bin\Release" -ForegroundColor Yellow
+        Read-Host "    Press Enter to exit"
         exit 1
     }
 
-    # Проверка наличия exe файла
     $exeFile = Join-Path $sourcePath "MFPControlCenter.exe"
     if (-not (Test-Path $exeFile)) {
-        Write-Err "Файл MFPControlCenter.exe не найден в $sourcePath"
-        Read-Host "Нажмите Enter для выхода"
+        Write-Err "MFPControlCenter.exe not found in $sourcePath"
+        Read-Host "Press Enter to exit"
         exit 1
     }
 
-    # Создание папки установки
     if (-not (Test-Path $InstallDir)) {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     }
 
-    # Копирование файлов
     Copy-Item -Path "$sourcePath\*" -Destination $InstallDir -Recurse -Force
-    Write-Success "Файлы скопированы"
+    Write-Success "Files copied"
 
-    # ═══════════════════════════════════════════════════════════════
-    # 6. Создание ярлыков
-    # ═══════════════════════════════════════════════════════════════
-    Write-Step 6 7 "Создание ярлыков..."
+    # Step 6: Create shortcuts
+    Write-Step 6 7 "Creating shortcuts..."
 
     $shell = New-Object -ComObject WScript.Shell
 
-    # Ярлык на рабочем столе
     $shortcut = $shell.CreateShortcut("$DesktopPath\$AppName.lnk")
     $shortcut.TargetPath = "$InstallDir\MFPControlCenter.exe"
     $shortcut.WorkingDirectory = $InstallDir
-    $shortcut.Description = "Центр управления МФУ HP LaserJet M1536dnf"
+    $shortcut.Description = "HP LaserJet M1536dnf MFP Control Center"
     $shortcut.IconLocation = "$InstallDir\MFPControlCenter.exe,0"
     $shortcut.Save()
 
-    # Ярлык в меню Пуск
     $shortcut = $shell.CreateShortcut("$StartMenuPath\$AppName.lnk")
     $shortcut.TargetPath = "$InstallDir\MFPControlCenter.exe"
     $shortcut.WorkingDirectory = $InstallDir
-    $shortcut.Description = "Центр управления МФУ HP LaserJet M1536dnf"
+    $shortcut.Description = "HP LaserJet M1536dnf MFP Control Center"
     $shortcut.IconLocation = "$InstallDir\MFPControlCenter.exe,0"
     $shortcut.Save()
 
-    Write-Success "Ярлыки созданы (рабочий стол + меню Пуск)"
+    Write-Success "Shortcuts created (Desktop + Start Menu)"
 
-    # ═══════════════════════════════════════════════════════════════
-    # 7. Создание деинсталлятора
-    # ═══════════════════════════════════════════════════════════════
-    Write-Step 7 7 "Создание файла удаления..."
+    # Step 7: Create uninstaller
+    Write-Step 7 7 "Creating uninstaller..."
 
     $uninstallBat = @"
 @echo off
 chcp 65001 >nul
-echo ═══════════════════════════════════════════════════════════════
-echo         Удаление MFP Control Center
-echo ═══════════════════════════════════════════════════════════════
+echo =================================================================
+echo         Uninstalling MFP Control Center
+echo =================================================================
 echo.
-echo Удаление файлов программы...
+echo Removing program files...
 rmdir /S /Q "%ProgramFiles%\MFP Control Center" 2>nul
-echo Удаление ярлыков...
+echo Removing shortcuts...
 del "%USERPROFILE%\Desktop\MFP Control Center.lnk" 2>nul
 del "%ProgramData%\Microsoft\Windows\Start Menu\Programs\MFP Control Center.lnk" 2>nul
 echo.
-echo ═══════════════════════════════════════════════════════════════
-echo         MFP Control Center успешно удалён!
-echo ═══════════════════════════════════════════════════════════════
+echo =================================================================
+echo         MFP Control Center uninstalled successfully!
+echo =================================================================
 pause
 "@
-    $uninstallBat | Out-File -FilePath "$InstallDir\Удалить программу.bat" -Encoding UTF8
+    $uninstallBat | Out-File -FilePath "$InstallDir\Uninstall.bat" -Encoding ASCII
 
-    Write-Success "Файл удаления создан"
+    Write-Success "Uninstaller created"
 
-    # Очистка временных файлов
     if (Test-Path $TempDir) {
         Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    # ═══════════════════════════════════════════════════════════════
-    # ГОТОВО!
-    # ═══════════════════════════════════════════════════════════════
+    # Done!
     Write-Host ""
-    Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "║                                                               ║" -ForegroundColor Green
-    Write-Host "║         УСТАНОВКА УСПЕШНО ЗАВЕРШЕНА!                          ║" -ForegroundColor Green
-    Write-Host "║                                                               ║" -ForegroundColor Green
-    Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+    Write-Host "=================================================================" -ForegroundColor Green
+    Write-Host "                                                                 " -ForegroundColor Green
+    Write-Host "         INSTALLATION COMPLETED SUCCESSFULLY!                    " -ForegroundColor Green
+    Write-Host "                                                                 " -ForegroundColor Green
+    Write-Host "=================================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "    Программа установлена: " -NoNewline
+    Write-Host "    Installed to: " -NoNewline
     Write-Host $InstallDir -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "    Ярлык создан на рабочем столе: " -NoNewline
+    Write-Host "    Desktop shortcut: " -NoNewline
     Write-Host "$AppName" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "    Для удаления запустите: " -NoNewline
-    Write-Host "$InstallDir\Удалить программу.bat" -ForegroundColor Gray
+    Write-Host "    To uninstall run: " -NoNewline
+    Write-Host "$InstallDir\Uninstall.bat" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Green
+    Write-Host "=================================================================" -ForegroundColor Green
 
-    $launch = Read-Host "    Запустить программу сейчас? (Y/N)"
-    if ($launch -eq "Y" -or $launch -eq "y" -or $launch -eq "Д" -or $launch -eq "д" -or $launch -eq "") {
+    $launch = Read-Host "    Launch program now? (Y/N)"
+    if ($launch -eq "Y" -or $launch -eq "y" -or $launch -eq "") {
         Write-Host ""
-        Write-Host "    Запуск MFP Control Center..." -ForegroundColor Cyan
+        Write-Host "    Launching MFP Control Center..." -ForegroundColor Cyan
         Start-Process "$InstallDir\MFPControlCenter.exe"
     }
 }
 
 function Uninstall-App {
     Write-Header
-    Write-Host "Удаление $AppName..." -ForegroundColor Yellow
+    Write-Host "Uninstalling $AppName..." -ForegroundColor Yellow
 
     if (-not (Test-Administrator)) {
         Start-Process PowerShell -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`" -Uninstall" -Verb RunAs
@@ -543,12 +503,10 @@ function Uninstall-App {
     Remove-Item -Path "$DesktopPath\$AppName.lnk" -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "$StartMenuPath\$AppName.lnk" -Force -ErrorAction SilentlyContinue
 
-    Write-Success "$AppName удалён!"
+    Write-Success "$AppName uninstalled!"
 }
 
-# ═══════════════════════════════════════════════════════════════
-# ЗАПУСК
-# ═══════════════════════════════════════════════════════════════
+# Main
 if ($Uninstall) {
     Uninstall-App
 }
@@ -557,4 +515,4 @@ else {
 }
 
 Write-Host ""
-Read-Host "Нажмите Enter для выхода"
+Read-Host "Press Enter to exit"
