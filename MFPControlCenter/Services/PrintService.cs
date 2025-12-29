@@ -70,7 +70,7 @@ namespace MFPControlCenter.Services
                 MaxCopies = settings.MaximumCopies
             };
 
-            foreach (PaperSize size in settings.PaperSizes)
+            foreach (System.Drawing.Printing.PaperSize size in settings.PaperSizes)
             {
                 capabilities.PaperSizes.Add(size.PaperName);
             }

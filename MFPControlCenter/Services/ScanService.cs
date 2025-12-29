@@ -344,13 +344,13 @@ namespace MFPControlCenter.Services
                 int colorType;
                 switch (settings.ColorMode)
                 {
-                    case ColorMode.Color:
+                    case Models.ColorMode.Color:
                         colorType = WIA_DATA_TYPE_COLOR;
                         break;
-                    case ColorMode.Grayscale:
+                    case Models.ColorMode.Grayscale:
                         colorType = WIA_DATA_TYPE_GRAYSCALE;
                         break;
-                    case ColorMode.BlackWhite:
+                    case Models.ColorMode.BlackWhite:
                         colorType = WIA_DATA_TYPE_BW;
                         break;
                     default:
